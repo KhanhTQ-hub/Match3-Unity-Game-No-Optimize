@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Controllers;
 using UnityEngine;
 
 public class BoardController : MonoBehaviour
@@ -11,7 +12,7 @@ public class BoardController : MonoBehaviour
 
     public bool IsBusy { get; private set; }
 
-    private Board m_board;
+    [SerializeField] private Board m_board;
 
     private GameManager m_gameManager;
 
@@ -22,6 +23,8 @@ public class BoardController : MonoBehaviour
     private Collider2D m_hitCollider;
 
     private GameSettings m_gameSettings;
+    
+    private SkinModeController m_skinModeController;
 
     private List<Cell> m_potentialMatch;
 
@@ -31,17 +34,19 @@ public class BoardController : MonoBehaviour
 
     private bool m_gameOver;
 
-    public void StartGame(GameManager gameManager, GameSettings gameSettings)
+    public void StartGame(GameManager gameManager, GameSettings gameSettings, SkinModeController skinModeController)
     {
         m_gameManager = gameManager;
 
+        m_skinModeController = skinModeController;
+        
         m_gameSettings = gameSettings;
 
         m_gameManager.StateChangedAction += OnGameStateChange;
 
         m_cam = Camera.main;
 
-        m_board = new Board(this.transform, gameSettings);
+        m_board = new Board(this.transform, gameSettings, skinModeController);
 
         Fill();
     }
@@ -232,19 +237,28 @@ public class BoardController : MonoBehaviour
         StartCoroutine(ShiftDownItemsCoroutine());
     }
 
+    // Shift down items and fill gaps with new items
     private IEnumerator ShiftDownItemsCoroutine()
     {
         m_board.ShiftDownItems();
 
         yield return new WaitForSeconds(0.2f);
 
+        // Init item mới cho các ô trống
         m_board.FillGapsWithNewItems();
 
         yield return new WaitForSeconds(0.2f);
 
+        // Check trên map ko còn matches nữa
         FindMatchesAndCollapse();
     }
 
+    public void RefillBoard()
+    {
+        StartCoroutine(RefillBoardCoroutine());
+    }
+    
+    // Clear the board and refill it
     private IEnumerator RefillBoardCoroutine()
     {
         m_board.ExplodeAllItems();

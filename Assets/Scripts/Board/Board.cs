@@ -3,8 +3,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Controllers;
+using Enums;
 using UnityEngine;
 
+[Serializable]
 public class Board
 {
     public enum eMatchDirection
@@ -24,11 +27,13 @@ public class Board
     private Transform m_root;
 
     private int m_matchMin;
+    
+    private SkinType m_skinType;
 
-    public Board(Transform transform, GameSettings gameSettings)
+    public Board(Transform transform, GameSettings gameSettings, SkinModeController skinModeController)
     {
         m_root = transform;
-
+        m_skinType = skinModeController.SkinType;
         m_matchMin = gameSettings.MatchesMin;
 
         this.boardSizeX = gameSettings.BoardSizeX;
@@ -39,6 +44,7 @@ public class Board
         CreateBoard();
     }
 
+    // Init Item Cell
     private void CreateBoard()
     {
         Vector3 origin = new Vector3(-boardSizeX * 0.5f + 0.5f, -boardSizeY * 0.5f + 0.5f, 0f);
@@ -72,6 +78,7 @@ public class Board
 
     }
 
+    // Set item normal
     internal void Fill()
     {
         for (int x = 0; x < boardSizeX; x++)
@@ -101,7 +108,7 @@ public class Board
                 }
 
                 item.SetType(Utils.GetRandomNormalTypeExcept(types.ToArray()));
-                item.SetView();
+                item.SetView(m_skinType);
                 item.SetViewRoot(m_root);
 
                 cell.Assign(item);
@@ -134,10 +141,11 @@ public class Board
             }
         }
     }
-
-
+    
     internal void FillGapsWithNewItems()
     {
+         var itemCount = ItemCount();
+     
         for (int x = 0; x < boardSizeX; x++)
         {
             for (int y = 0; y < boardSizeY; y++)
@@ -145,10 +153,38 @@ public class Board
                 Cell cell = m_cells[x, y];
                 if (!cell.IsEmpty) continue;
 
+                var adjacentTypes = new HashSet<NormalItem.eNormalType>();
+                int[,] directions = new int[,] { { 0, 1 }, { 1, 0 }, { 0, -1 }, { -1, 0 } };
+
+                for (int i = 0; i < directions.GetLength(0); i++)
+                {
+                    int nx = x + directions[i, 0];
+                    int ny = y + directions[i, 1];
+                    if (nx >= 0 && nx < boardSizeX && ny >= 0 && ny < boardSizeY)
+                    {
+                        if (!m_cells[nx, ny].IsEmpty && m_cells[nx, ny].Item is NormalItem normalItem)
+                        {
+                            adjacentTypes.Add(normalItem.ItemType);
+                        }
+                    }
+                }
+                
+                var type = Utils.GetRandomNormalType();
+                var minCount = int.MaxValue;
+
+                foreach (var kvp in itemCount)
+                {
+                    if (!adjacentTypes.Contains(kvp.Key) && kvp.Value < minCount)
+                    {
+                        type = kvp.Key;
+                        minCount = kvp.Value;
+                    }
+                }
+                
                 NormalItem item = new NormalItem();
 
-                item.SetType(Utils.GetRandomNormalType());
-                item.SetView();
+                item.SetType(type);
+                item.SetView(m_skinType);
                 item.SetViewRoot(m_root);
 
                 cell.Assign(item);
@@ -157,6 +193,29 @@ public class Board
         }
     }
 
+    // Đếm min item
+    private Dictionary<NormalItem.eNormalType, int> ItemCount()
+    {
+        var itemCount = new Dictionary<NormalItem.eNormalType, int>();
+        for (int x = 0; x < boardSizeX; x++)
+        {
+            for (int y = 0; y < boardSizeY; y++)
+            {
+                if (!m_cells[x, y].IsEmpty && m_cells[x, y].Item is NormalItem normalItem)
+                {
+                    if (!itemCount.ContainsKey(normalItem.ItemType))
+                    {
+                        itemCount[normalItem.ItemType] = 0;
+                    }
+                    
+                    itemCount[normalItem.ItemType]++;
+                }
+            }
+        }
+
+        return itemCount;
+    }
+    
     internal void ExplodeAllItems()
     {
         for (int x = 0; x < boardSizeX; x++)
@@ -182,6 +241,7 @@ public class Board
         item2.View.DOMove(cell1.transform.position, 0.3f).OnComplete(() => { if (callback != null) callback(); });
     }
 
+    // Check Same item in Horizontal
     public List<Cell> GetHorizontalMatches(Cell cell)
     {
         List<Cell> list = new List<Cell>();
@@ -282,7 +342,7 @@ public class Board
                 cellToConvert = matches[rnd];
             }
 
-            item.SetView();
+            item.SetView(m_skinType);
             item.SetViewRoot(m_root);
 
             cellToConvert.Free();

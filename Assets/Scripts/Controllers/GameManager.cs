@@ -2,6 +2,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Controllers;
 using UnityEngine;
 
 public class GameManager : MonoBehaviour
@@ -21,9 +22,11 @@ public class GameManager : MonoBehaviour
         GAME_STARTED,
         PAUSE,
         GAME_OVER,
+        RESTART
     }
 
     private eStateGame m_state;
+
     public eStateGame State
     {
         get { return m_state; }
@@ -38,6 +41,7 @@ public class GameManager : MonoBehaviour
 
     private GameSettings m_gameSettings;
 
+    private SkinModeController m_skinModeController;
 
     private BoardController m_boardController;
 
@@ -45,11 +49,14 @@ public class GameManager : MonoBehaviour
 
     private LevelCondition m_levelCondition;
 
+    private eLevelMode m_levelMode;
+
     private void Awake()
     {
         State = eStateGame.SETUP;
 
         m_gameSettings = Resources.Load<GameSettings>(Constants.GAME_SETTINGS_PATH);
+        m_skinModeController = Resources.Load<SkinModeController>(Constants.SKIN_MODE_CONTROLLER_PATH);
 
         m_uiMenu = FindObjectOfType<UIMainManager>();
         m_uiMenu.Setup(this);
@@ -71,7 +78,7 @@ public class GameManager : MonoBehaviour
     {
         State = state;
 
-        if(State == eStateGame.PAUSE)
+        if (State == eStateGame.PAUSE)
         {
             DOTween.PauseAll();
         }
@@ -84,7 +91,8 @@ public class GameManager : MonoBehaviour
     public void LoadLevel(eLevelMode mode)
     {
         m_boardController = new GameObject("BoardController").AddComponent<BoardController>();
-        m_boardController.StartGame(this, m_gameSettings);
+        m_boardController.StartGame(this, m_gameSettings, m_skinModeController);
+        m_levelMode = mode;
 
         if (mode == eLevelMode.MOVES)
         {
@@ -105,6 +113,14 @@ public class GameManager : MonoBehaviour
     public void GameOver()
     {
         StartCoroutine(WaitBoardController());
+    }
+
+    public void RestartLevel()
+    {
+        if (State != eStateGame.GAME_STARTED) return;
+
+        ClearLevel();
+        LoadLevel(m_levelMode);
     }
 
     internal void ClearLevel()

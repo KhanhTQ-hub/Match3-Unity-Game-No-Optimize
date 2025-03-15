@@ -1,12 +1,11 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class UIMainManager : MonoBehaviour
 {
+    public GameManager GameManager => m_gameManager;
+    
     private IMenu[] m_menuList;
 
     private GameManager m_gameManager;
